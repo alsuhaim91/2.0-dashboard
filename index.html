@@ -46,7 +46,7 @@
   <main class="p-4 md:p-6 max-w-7xl mx-auto w-full space-y-5 flex-grow">
 
     <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5 text-[11px] text-blue-900 leading-relaxed">
-      <b>ما الذي يُحدَّث تلقائياً؟</b> شريط الأخبار فقط يجلب عناوين جديدة عند كل فتح للصفحة. أما المؤشرات والممرات وآراء الخبراء فهي <b>لقطة ثابتة</b> بتاريخ 9 يونيو 2026 ولن تتغيّر غداً ما لم يُحدَّث الملف أو يُربط بمصدر بيانات حي.
+      <b>ما الذي يُحدَّث تلقائياً؟</b> تُجلب حياً (أفضل جهد، إغلاق يومي عبر مصادر مجانية، وتُنعش كل 5 دقائق): الأخبار، سعر النفط، أسعار السلع الغذائية، والوضع المالي المحسوب آلياً من سعر النفط، إضافةً إلى مؤشر تاسي عند توفّره. تبقى لقطة مرجعية: أجور الشحن (لا مصدر حي مجاني). والسيناريوهات وآراء الخبراء ومخططات التجارة والرادار هي تحليل وليست بيانات سوق حية.
     </div>
 
     <section class="bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
@@ -203,7 +203,7 @@
         </div>
         <div>
           <h4 class="font-bold text-slate-700 mb-2">💱 البيانات الكلية</h4>
-          <p>أسعار النفط والشحن ومؤشر تاسي لقطات معلّمة وليست بثاً حياً. لتحويلها إلى تحديث تلقائي يلزم ربطها بواجهة بيانات أسواق (مدفوعة عادةً). شريط الأخبار وحده حي.</p>
+          <p>النفط والسلع الغذائية تُجلب حياً (إغلاق يومي عبر Stooq، أفضل جهد)، والوضع المالي محسوب آلياً من سعر النفط الحي مقابل تعادل ~$96. أجور الشحن لقطة مرجعية (لا مصدر حي مجاني)، ومؤشر تاسي يُحاوَل جلبه حياً وإلا يبقى آخر إغلاق. القيم الحية قد تتأخر أو تتعذّر بسبب حدود المزوّدات المجانية.</p>
         </div>
       </div>
 
@@ -357,6 +357,41 @@ async function fetchFoodPrices(){
   if(active==='current')updateFood('current');
 }
 
+let liveBrent=null,liveTasi=null,marketTime='';
+async function pullStooq(sym,min,max){
+  try{
+    const r=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent('https://stooq.com/q/l/?s='+sym+'&f=sd2t2ohlcv&h&e=csv'));
+    if(!r.ok)return null;
+    const lines=(await r.text()).trim().split('\n'); if(lines.length<2)return null;
+    const cols=lines[1].split(','); const c=parseFloat(cols[6]);
+    if(!isFinite(c)||c<min||c>max)return null;
+    return {v:c,d:cols[1]||''};
+  }catch(e){return null;}
+}
+async function fetchMarkets(){
+  if(active!=='current')return;
+  const b=await pullStooq('cb.f',30,250); if(b){liveBrent=b.v;marketTime=b.d;}
+  const t=await pullStooq('^tasi',5000,20000); if(t){liveTasi=t.v;}
+  if(active==='current')renderMarkets('current',M.current);
+}
+function renderMarkets(key,m){
+  const brent=(liveBrent||BASE_BRENT)+m.brentP;
+  document.getElementById('brent').textContent='$'+brent.toFixed(2);
+  const bs=document.getElementById('brent-sub');
+  if(m.brentP>0){bs.textContent='علاوة محاكاة: +$'+m.brentP.toFixed(2);bs.style.color=C.red;}
+  else{bs.textContent=liveBrent?('سعر حي ✓ '+marketTime):'سعر متقلب — أساس واقعي';bs.style.color=liveBrent?'#059669':'#64748b';}
+
+  const fis=document.getElementById('fiscal'),fsub=document.getElementById('fiscal-sub');
+  if(key==='current'){const gap=brent-BREAKEVEN;fis.textContent=(gap>=0?'+$':'−$')+Math.abs(gap).toFixed(2);fis.classList.add('mono');fis.style.color=gap>=0?'#059669':C.amber;fsub.textContent=(liveBrent?'محسوب من النفط الحي':'مقابل التعادل')+' (~$96)';fsub.style.color=gap>=0?'#059669':C.amber;}
+  else{fis.textContent='إيراد محتجَز';fis.classList.remove('mono');fis.style.color=C.red;fsub.textContent='القفزة السعرية لا تتحول إيراداً لتعذّر التصدير';fsub.style.color=C.red;}
+
+  const tasi=Math.round((liveTasi||BASE_TASI)*(1+m.tasiD/100));
+  document.getElementById('tasi').textContent=tasi.toLocaleString('en-US');
+  const ts=document.getElementById('tasi-sub');
+  if(m.tasiD<0){ts.textContent='محاكاة: '+m.tasiD+'%';ts.style.color=C.red;}
+  else{ts.textContent=liveTasi?'سعر حي ✓':'آخر إغلاق معتمد';ts.style.color=liveTasi?'#059669':'#64748b';}
+}
+
 async function fetchNews(){
   const box=document.getElementById('news');
   if(active!=='current')return;
@@ -405,21 +440,11 @@ function run(key){
   document.getElementById('scn-desc').textContent=m.desc;
   ['current','hormuz','both','global'].forEach(k=>{const b=document.getElementById('b-'+k),bm=M[k],on=(k===key);b.style.borderColor=on?bm.btn:'#e2e8f0';b.style.background=on?'#f8fafc':'#fff';b.style.boxShadow=on?`0 0 0 2px ${bm.btn}33`:'none';b.style.opacity=on?'1':'0.75';b.innerHTML=`<div class="flex justify-between items-center mb-1"><span class="text-[11px] font-bold mono" style="color:${bm.btn}">${bm.tag==='مباشر'?'الوضع الحالي':'سيناريو'}</span><span class="h-2 w-2 rounded-full" style="background:${on?bm.btn:'#cbd5e1'}"></span></div><div class="font-bold text-[13px] text-slate-800">${bm.name}</div>`;});
 
-  const brent=BASE_BRENT+m.brentP;
-  document.getElementById('brent').textContent='$'+brent.toFixed(2);
-  const bs=document.getElementById('brent-sub');if(m.brentP>0){bs.textContent='علاوة محاكاة: +$'+m.brentP.toFixed(2);bs.style.color=C.red;}else{bs.textContent='سعر متقلب — أساس واقعي';bs.style.color='#64748b';}
-
-  const fis=document.getElementById('fiscal'),fsub=document.getElementById('fiscal-sub');
-  if(key==='current'){const gap=brent-BREAKEVEN;fis.textContent=(gap>=0?'+$':'−$')+Math.abs(gap).toFixed(2);fis.classList.add('mono');fis.style.color=C.amber;fsub.textContent='قرب نقطة التعادل (~$96)';fsub.style.color=C.amber;}
-  else{fis.textContent='إيراد محتجَز';fis.classList.remove('mono');fis.style.color=C.red;fsub.textContent='القفزة السعرية لا تتحول إيراداً لتعذّر التصدير';fsub.style.color=C.red;}
+  renderMarkets(key,m);
 
   const fr=Math.round(BASE_FREIGHT*m.freightX);
   document.getElementById('freight').textContent='$'+fr.toLocaleString('en-US');
-  const frs=document.getElementById('freight-sub');frs.textContent=m.freightX>1?('ارتفاع ×'+m.freightX):'مرتفع بفعل إعادة التوجيه';frs.style.color=m.freightX>1?C.red:'#64748b';
-
-  const tasi=Math.round(BASE_TASI*(1+m.tasiD/100));
-  document.getElementById('tasi').textContent=tasi.toLocaleString('en-US');
-  const ts=document.getElementById('tasi-sub');ts.textContent=m.tasiD<0?('محاكاة: '+m.tasiD+'%'):'آخر إغلاق معتمد';ts.style.color=m.tasiD<0?C.red:'#64748b';
+  const frs=document.getElementById('freight-sub');frs.textContent=m.freightX>1?('محاكاة ×'+m.freightX):'مرجعي — مرتفع بفعل إعادة التوجيه';frs.style.color=m.freightX>1?C.red:'#64748b';
 
   badge(document.getElementById('corr-badge'),m.corrBadge[0],m.corrBadge[1]);
   Object.keys(m.corr).forEach(k=>{const[pct,col]=m.corr[k];const bar=document.getElementById('bar-'+k);bar.style.width=pct+'%';bar.style.backgroundColor=col;document.getElementById('t-'+k).textContent=pct+'%';document.getElementById('t-'+k).style.color=col;const dot=document.getElementById('dot-'+k);dot.style.backgroundColor=col;dot.style.animation=pct<=10?'none':'pulse 1.5s infinite';});
@@ -427,7 +452,7 @@ function run(key){
   Object.keys(m.ex).forEach(k=>badge(document.getElementById('ex-'+k),m.ex[k][0],m.ex[k][1]));
   Object.keys(m.im).forEach(k=>badge(document.getElementById('im-'+k),m.im[k][0],m.im[k][1]));
   Object.keys(m.ports).forEach(k=>badge(document.getElementById('port-'+k),m.ports[k][0],m.ports[k][1]));
-  updateFood(key); if(key==='current')fetchFoodPrices();
+  updateFood(key); if(key==='current'){fetchFoodPrices();fetchMarkets();}
 
   document.getElementById('news-tag').textContent=m.live?'مباشر':'محاكاة';
   if(m.live){fetchNews();}
@@ -459,6 +484,7 @@ function buildCharts(){
 }
 
 buildCorridors();buildList('exports',EX_LABELS,'ex');buildList('imports',IM_LABELS,'im');buildPorts();buildExperts();buildFoodPrices();buildCharts();run('current');
+setInterval(()=>{if(active==='current'){fetchMarkets();fetchFoodPrices();fetchNews();}},300000);
 </script>
 </body>
 </html>
