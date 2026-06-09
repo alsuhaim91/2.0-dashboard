@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة سلاسل الإمداد العالمية وأثرها على المملكة</title>
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap');
+  body{font-family:'Cairo',sans-serif}
+  .mono{font-family:'IBM Plex Mono',monospace;direction:ltr;display:inline-block}
+  ::-webkit-scrollbar{width:6px;height:6px}
+  ::-webkit-scrollbar-track{background:#f1f5f9}
+  ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:10px}
+  .live-dot{height:8px;width:8px;border-radius:50%;display:inline-block}
+  @keyframes pulse{0%{transform:scale(.95);box-shadow:0 0 0 0 rgba(16,185,129,.6)}70%{transform:scale(1);box-shadow:0 0 0 6px rgba(16,185,129,0)}100%{transform:scale(.95);box-shadow:0 0 0 0 rgba(16,185,129,0)}}
+  .bar-fill{height:100%;border-radius:9999px;transition:width .6s cubic-bezier(.16,1,.3,1),background-color .4s}
+  details.why summary{cursor:pointer;list-style:none}
+  details.why summary::-webkit-details-marker{display:none}
+  details.why[open] summary .chev{transform:rotate(180deg)}
+</style>
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased relative min-h-screen flex flex-col">
+
+  <div class="fixed inset-0 z-[-1] bg-[url('https://upload.wikimedia.org/wikipedia/commons/0/0d/Flag_of_Saudi_Arabia.svg')] bg-cover bg-center opacity-[0.035] pointer-events-none"></div>
+
+  <div id="top-banner" class="px-4 py-2 text-center text-xs font-bold tracking-wide shadow-sm" style="background:#d97706;color:#fff">تحميل الوضع الحالي…</div>
+
+  <header class="border-b border-slate-200 bg-white/85 backdrop-blur sticky top-0 z-50 px-5 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 shadow-sm">
+    <div>
+      <h1 class="text-lg md:text-2xl font-black text-slate-800 flex items-center gap-2 flex-wrap">
+        <span class="text-emerald-700">🇸🇦 لوحة سلاسل الإمداد العالمية</span>
+        <span class="text-slate-300 font-light">|</span>
+        <span class="text-slate-700">الواردات والصادرات الحرجة للمملكة</span>
+      </h1>
+      <p class="text-[11px] text-slate-500 mt-1">نقاط الاختناق البحرية، أسواق الطاقة والمعادن والسلع الغذائية، ازدحام الموانئ، وآراء الخبراء وتوقعاتهم</p>
+    </div>
+    <div class="flex items-center gap-3 text-[11px] bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
+      <div><span class="text-slate-500">السيناريو:</span> <span id="active-badge" class="text-amber-700 font-bold">الوضع الحالي</span></div>
+      <div class="h-4 w-px bg-slate-300"></div>
+      <div><span class="text-slate-500">تحديث:</span> <span class="text-slate-700 font-bold mono">2026-06-09</span></div>
+    </div>
+  </header>
+
+  <main class="p-4 md:p-6 max-w-7xl mx-auto w-full space-y-5 flex-grow">
+
+    <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5 text-[11px] text-blue-900 leading-relaxed">
+      <b>ما الذي يُحدَّث تلقائياً؟</b> شريط الأخبار فقط يجلب عناوين جديدة عند كل فتح للصفحة. أما المؤشرات والممرات وآراء الخبراء فهي <b>لقطة ثابتة</b> بتاريخ 9 يونيو 2026 ولن تتغيّر غداً ما لم يُحدَّث الملف أو يُربط بمصدر بيانات حي.
+    </div>
+
+    <section class="bg-white border border-slate-200 p-4 rounded-xl shadow-sm">
+      <h2 class="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">🕹️ محرك السيناريوهات — تصعيد إغلاق الممرات البحرية</h2>
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <button onclick="run('current')" id="b-current" class="p-3 rounded-xl border text-right transition-all"></button>
+        <button onclick="run('hormuz')" id="b-hormuz" class="p-3 rounded-xl border text-right transition-all"></button>
+        <button onclick="run('both')" id="b-both" class="p-3 rounded-xl border text-right transition-all"></button>
+        <button onclick="run('global')" id="b-global" class="p-3 rounded-xl border text-right transition-all"></button>
+      </div>
+      <p id="scn-desc" class="text-[11px] text-slate-500 mt-3 leading-relaxed border-t border-slate-100 pt-2"></p>
+    </section>
+
+    <section>
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="text-xs font-bold text-slate-600 tracking-wide">المؤشرات الكلية</h2>
+        <span class="text-[10px] text-slate-400">أرقام سيناريوهات الإغلاق <b>محاكاة توضيحية</b> — اضغط «لماذا؟» لمعرفة أساس كل رقم</span>
+      </div>
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col">
+          <span class="text-[11px] font-bold text-slate-500">خام برنت</span>
+          <div class="mt-1"><span id="brent" class="text-2xl font-black text-slate-800 mono">$94.00</span></div>
+          <span id="brent-sub" class="text-[11px] font-bold block mt-1 text-slate-500">سعر متقلب — أساس واقعي</span>
+          <details class="why mt-2"><summary class="text-[10px] text-blue-600 font-bold flex items-center gap-1">لماذا هذا الرقم؟ <span class="chev inline-block transition-transform">▾</span></summary>
+            <p class="text-[10px] text-slate-500 mt-1.5 leading-relaxed">وفق EIA، قفز برنت من $71 (27 فبراير) إلى $94 (9 مارس) بعد بدء الحرب، ثم تراوح بين ~$94 و$140، واستقر قرب $94–95 مطلع يونيو مع محادثات التهدئة. اخترنا $94 كأساس حديث محافظ.</p>
+          </details>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col">
+          <span class="text-[11px] font-bold text-slate-500">الوضع المالي للميزانية</span>
+          <div class="mt-1"><span id="fiscal" class="text-2xl font-black mono text-amber-600">−$2.00</span></div>
+          <span id="fiscal-sub" class="text-[11px] font-bold block mt-1 text-amber-600">قرب نقطة التعادل (~$96)</span>
+          <details class="why mt-2"><summary class="text-[10px] text-blue-600 font-bold flex items-center gap-1">لماذا هذا الرقم؟ <span class="chev inline-block transition-transform">▾</span></summary>
+            <p class="text-[10px] text-slate-500 mt-1.5 leading-relaxed">نقطة التعادل المالية للمملكة ~$96 وفق تقديرات صندوق النقد/أبيكورب. تقديرات معدّلة زمن الحرب (هاوس أوف سعود) ترفعها إلى $108–111 بسبب انهيار حجم التصدير وارتفاع الإنفاق العسكري. استخدمنا $96 كتقدير هيكلي محافظ.</p>
+          </details>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col">
+          <span class="text-[11px] font-bold text-slate-500">مؤشر أجور الشحن (FEU)</span>
+          <div class="mt-1"><span id="freight" class="text-2xl font-black text-slate-800 mono">$3,500</span></div>
+          <span id="freight-sub" class="text-[11px] font-bold block mt-1 text-slate-500">مرتفع بفعل إعادة التوجيه</span>
+          <details class="why mt-2"><summary class="text-[10px] text-blue-600 font-bold flex items-center gap-1">لماذا هذا الرقم؟ <span class="chev inline-block transition-transform">▾</span></summary>
+            <p class="text-[10px] text-slate-500 mt-1.5 leading-relaxed">أجور الحاوية مرتفعة فوق معدلات ما قبل 2024 (~$1,500) بسبب الالتفاف حول إفريقيا منذ اضطرابات البحر الأحمر (انخفض الشحن ~60% منذ ديسمبر 2023) ثم الحرب. أُبلغ عن رسوم حرب تصل $4,000/حاوية. اخترنا $3,500 كأساس مرتفع توضيحي.</p>
+          </details>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col">
+          <span class="text-[11px] font-bold text-slate-500">مؤشر تاسي TASI</span>
+          <div class="mt-1"><span id="tasi" class="text-2xl font-black text-slate-800 mono">11,100</span></div>
+          <span id="tasi-sub" class="text-[11px] font-bold block mt-1 text-slate-500">آخر إغلاق معتمد</span>
+          <details class="why mt-2"><summary class="text-[10px] text-blue-600 font-bold flex items-center gap-1">لماذا هذا الرقم؟ <span class="chev inline-block transition-transform">▾</span></summary>
+            <p class="text-[10px] text-slate-500 mt-1.5 leading-relaxed">قيمة تقريبية لآخر إغلاق لمؤشر تاسي. مُعلَّمة «آخر إغلاق» وليست حيّة (لا يتوفر مصدر مجاني حي للمؤشر). انخفاضات السيناريوهات محاكاة وليست حركة فعلية للسوق.</p>
+          </details>
+        </div>
+
+      </div>
+    </section>
+
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div class="lg:col-span-2 bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+        <h3 class="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2 mb-4 flex items-center justify-between">
+          <span>⚓ نقاط الاختناق البحرية</span>
+          <span id="corr-badge" class="px-2 py-0.5 rounded text-[10px] font-bold">—</span>
+        </h3>
+        <div id="corridors" class="space-y-4"></div>
+        <p class="text-[10px] text-slate-400 mt-4 border-t border-slate-100 pt-2">النسبة = التدفق التقديري عبر الممر مقارنةً بالطاقة الطبيعية. الممر الشرقي = هرمز، الغربي = باب المندب/البحر الأحمر.</p>
+      </div>
+
+      <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col">
+        <h3 class="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2 mb-3 flex items-center justify-between">
+          <span>📡 شريط الأخبار</span>
+          <span id="news-tag" class="px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-[10px] font-bold">مباشر</span>
+        </h3>
+        <div id="news" class="space-y-2.5 overflow-y-auto max-h-[300px] pe-1 text-xs flex-grow"></div>
+        <div class="text-[10px] text-slate-400 border-t border-slate-100 pt-2 mt-2 text-center">الوضع الحالي: بث حي عبر RSS مع روابط للمقال الأصلي. سيناريوهات الإغلاق: عناوين محاكاة.</div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+        <h3 class="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">📤 الصادرات الحرجة للمملكة</h3>
+        <div id="exports" class="space-y-2.5"></div>
+      </div>
+      <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+        <h3 class="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2 mb-3 flex items-center gap-2">📥 الواردات الحرجة (الغذاء والمعادن والسلع الرأسمالية)</h3>
+        <div id="imports" class="space-y-2.5"></div>
+      </div>
+    </section>
+
+    <section class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+      <h3 class="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2 mb-3 flex items-center justify-between">
+        <span class="flex items-center gap-2">💰 أسعار السلع الغذائية</span>
+        <span id="food-tag" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">مرجعي</span>
+      </h3>
+      <div id="food-prices" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3"></div>
+      <p class="text-[10px] text-slate-400 mt-3 border-t border-slate-100 pt-2">الأسعار بالدولار للطن المتري. في الوضع الحالي تُعرض آخر أسعار مرجعية حقيقية ويُحاوَل تحديثها حياً. في سيناريوهات الإغلاق تُطبَّق علاوة <b>محاكاة</b> توضيحية. اضغط اسم السلعة لفتح مصدر السعر الحي.</p>
+    </section>
+
+    <section class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+      <h3 class="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2 mb-4 flex items-center gap-2">🚢 ازدحام الموانئ ذات الأهمية للمملكة</h3>
+      <div id="ports" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3"></div>
+    </section>
+
+    <section class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+      <h3 class="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2 mb-4 flex items-center gap-2">📤 أكبر 10 صادرات سعودية وأهم وجهاتها</h3>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div><p class="text-[11px] font-bold text-slate-600 mb-2">حسب المنتج (مليار دولار، 2024 — تقديري)</p><div style="height:300px"><canvas id="ch-exp-prod"></canvas></div></div>
+        <div><p class="text-[11px] font-bold text-slate-600 mb-2">حسب الوجهة (% من إجمالي الصادرات، 2024)</p><div style="height:300px"><canvas id="ch-exp-dest"></canvas></div></div>
+      </div>
+      <p class="text-[10px] text-slate-400 mt-3 border-t border-slate-100 pt-2">المصدر: OEC وWorldstopexports (2024). إجمالي الصادرات ~$305 مليار؛ النفط الخام ~$179 مليار (59%). قيم المنتجات تقديرية، وحصص الوجهات موثّقة.</p>
+    </section>
+
+    <section class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+      <h3 class="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2 mb-4 flex items-center gap-2">📥 أكبر 10 واردات سعودية وأهم مصادرها</h3>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div><p class="text-[11px] font-bold text-slate-600 mb-2">حسب المنتج (مليار دولار، 2024 — تقديري)</p><div style="height:300px"><canvas id="ch-imp-prod"></canvas></div></div>
+        <div><p class="text-[11px] font-bold text-slate-600 mb-2">حسب المصدر (% من إجمالي الواردات، 2024)</p><div style="height:300px"><canvas id="ch-imp-orig"></canvas></div></div>
+      </div>
+      <p class="text-[10px] text-slate-400 mt-3 border-t border-slate-100 pt-2">المصدر: Worldstopexports (2024). إجمالي الواردات ~$233 مليار. أكبر 5 منتجات: السيارات، الوقود المكرر، الهواتف، الذهب، الأدوية (~24% من الإجمالي). قيم المنتجات تقديرية، وحصص الدول موثّقة.</p>
+    </section>
+
+    <section class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+      <h3 class="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2 mb-4 flex items-center gap-2">🕸️ مؤشر الضغط متعدد المحاور عبر مراحل الحرب</h3>
+      <div class="max-w-2xl mx-auto" style="height:400px"><canvas id="ch-radar"></canvas></div>
+      <p class="text-[10px] text-slate-400 mt-3 border-t border-slate-100 pt-2"><b>محاكاة تحليلية:</b> درجة الضغط (0–100، الأعلى = أسوأ) على كل محور يهمّ المملكة، في اليوم 1 و30 و60 و90 من الحرب ثم الآن. يبيّن أن الضغط المادي/الطاقي بلغ ذروته نحو اليوم 60، بينما تراكم الضغط المالي وتأخّر تعافيه، مع انفراج جزئي للأسواق مع محادثات التهدئة.</p>
+    </section>
+
+    <section>
+      <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+        <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2">🧠 آراء الخبراء وتوقعاتهم</h2>
+        <span class="text-[10px] text-slate-400">لقطة بتاريخ 9 يونيو 2026 — لا تُحدَّث تلقائياً. الروابط تأخذك للمقال الأصلي.</span>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+          <h3 class="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2 mb-3">🛢️ سوق النفط — التوقعات</h3>
+          <div id="exp-oil" class="space-y-3"></div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+          <h3 class="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2 mb-3">🌾 الأمن الغذائي — التوقعات</h3>
+          <div id="exp-food" class="space-y-3"></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="bg-slate-100 border-t border-slate-200 mt-6 py-6 px-6">
+    <div class="max-w-7xl mx-auto space-y-5 text-[11px] text-slate-500 leading-relaxed">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <h4 class="font-bold text-slate-700 mb-2">🔎 المنهجية والحدود</h4>
+          <p>الوضع الحالي يعكس بيانات واقعية متقلبة كما في 9 يونيو 2026. سيناريوهات الإغلاق <b>محاكاة توضيحية</b> لاختبار الحساسية وليست تنبؤات. ارتفاع سعر النفط عند إغلاق المضائق <b>لا يعني فائضاً مالياً</b>، لأن المملكة تعجز عن التصدير — لذا تُظهر اللوحة ضغطاً مالياً رغم القفزة السعرية.</p>
+        </div>
+        <div>
+          <h4 class="font-bold text-slate-700 mb-2">💱 البيانات الكلية</h4>
+          <p>أسعار النفط والشحن ومؤشر تاسي لقطات معلّمة وليست بثاً حياً. لتحويلها إلى تحديث تلقائي يلزم ربطها بواجهة بيانات أسواق (مدفوعة عادةً). شريط الأخبار وحده حي.</p>
+        </div>
+      </div>
+
+      <div>
+        <h4 class="font-bold text-slate-700 mb-2">📚 المصادر الخارجية (روابط مباشرة للمقالات)</h4>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1.5">
+          <div>
+            <p class="font-bold text-slate-600 mb-1 text-[10px]">سوق النفط</p>
+            <ul class="space-y-1">
+              <li>↗ <a class="text-blue-600 hover:underline" target="_blank" rel="noopener" href="https://think.ing.com/articles/oil-forecasts-revised-higher-as-strait-of-hormuz-disruption-drags-on280426/">ING — رفع توقعات برنت مع استمرار اضطراب هرمز</a></li>
+              <li>↗ <a class="text-blue-600 hover:underline" target="_blank" rel="noopener" href="https://www.fortune.com/2026/04/09/oil-price-outlook-brent-goldman-sachs-100-plus">Fortune/Goldman Sachs — برنت فوق $100</a></li>
+              <li>↗ <a class="text-blue-600 hover:underline" target="_blank" rel="noopener" href="https://eia.gov/outlooks/steo/report/global_oil.php">EIA — التوقعات قصيرة الأجل للطاقة</a></li>
+              <li>↗ <a class="text-blue-600 hover:underline" target="_blank" rel="noopener" href="https://www.cnbc.com/2026/05/12/oil-prices-today-brent-wti-trump-iran-war-hormuz.html">CNBC — هوكستين وأرامكو حول التطبيع</a></li>
+              <li>↗ <a class="text-blue-600 hover:underline" target="_blank" rel="noopener" href="https://www.jpmorgan.com/insights/global-research/commodities/oil-prices">J.P. Morgan — توقعات النفط 2026</a></li>
+            </ul>
+          </div>
+          <div>
+            <p class="font-bold text-slate-600 mb-1 text-[10px]">الأمن الغذائي</p>
+            <ul class="space-y-1">
+              <li>↗ <a class="text-blue-600 hover:underline" target="_blank" rel="noopener" href="https://blogs.worldbank.org/en/opendata/food-prices-feel-the-heat-as-war-in-the-middle-east-rattles-comm">البنك الدولي — أسعار الغذاء وأسواق السلع</a></li>
+              <li>↗ <a class="text-blue-600 hover:underline" target="_blank" rel="noopener" href="https://www.ifpri.org/blog/will-the-iran-crisis-lead-to-another-round-of-food-price-spikes/">IFPRI — أزمة الأسمدة وأسعار الغذاء</a></li>
+              <li>↗ <a class="text-blue-600 hover:underline" target="_blank" rel="noopener" href="https://www.spglobal.com/energy/en/news-research/latest-news/agriculture/033026-factbox-middle-east-war-threatens-food-security-in-gulf-countries">S&P Global / FAO — تهديد الأمن الغذائي الخليجي</a></li>
+              <li>↗ <a class="text-blue-600 hover:underline" target="_blank" rel="noopener" href="https://www.csis.org/analysis/chokepoint-how-war-iran-threatens-global-food-security">CSIS — نقطة الاختناق والأمن الغذائي</a></li>
+              <li>↗ <a class="text-blue-600 hover:underline" target="_blank" rel="noopener" href="https://www.cnbc.com/2026/03/12/iran-war-food-prices-fertilizer-hormuz-countries-impacted-.html">CNBC/BMI — الخليج الأكثر عرضة لقفزات الغذاء</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="text-[10px] text-slate-400 pt-3 border-t border-slate-200 text-center">أداة تحليلية مستقلة — لا تمثل جهة رسمية — الإصدار 2.0</div>
+    </div>
+  </footer>
+
+<script>
+const BASE_BRENT=94.00, BREAKEVEN=96.00, BASE_FREIGHT=3500, BASE_TASI=11100;
+const C={green:'#10b981',amber:'#f59e0b',red:'#ef4444',dark:'#b91c1c',slate:'#94a3b8'};
+const S={green:{bg:'#d1fae5',tx:'#065f46'},amber:{bg:'#fef3c7',tx:'#92400e'},red:{bg:'#fee2e2',tx:'#991b1b'},dark:{bg:'#fecaca',tx:'#7f1d1d'}};
+
+const M={
+ current:{name:'الوضع الحالي',tag:'مباشر',btn:C.amber,
+  banner:'🟠 الوضع الحالي (9 يونيو 2026): اضطراب جزئي في الممر الشرقي وإعادة توجيه عبر البحر الأحمر — بيانات واقعية متقلبة',bannerBg:'#d97706',
+  desc:'الأساس الواقعي: مضيق هرمز معلَن إغلاقه جزئياً مع إعادة توجيه عبر خط شرق–غرب نحو ينبع، والبحر الأحمر متأثر، ومحادثات تهدئة جارية. السيناريوهات التالية تصعيدية.',
+  brentP:0,freightX:1.0,tasiD:0,live:true,
+  corr:{hormuz:[35,C.amber],mandeb:[45,C.amber],suez:[40,C.amber],malacca:[100,C.green]},corrBadge:['اضطراب جزئي','amber'],
+  ex:{crude:['تصدير مقيّد عبر إعادة التوجيه','amber'],prod:['تدفق مع تأخير','amber'],petro:['متأثر — موانئ الخليج','amber'],alu:['طبيعي تقريباً','green']},
+  im:{wheat:['مؤمَّن مع تأخيرات','amber'],rice:['مؤمَّن','amber'],barley:['مؤمَّن','amber'],steel:['تأخير وارتفاع كلفة','amber'],capital:['تأخير شحن','amber']},
+  ports:{jeddah:['ازدحام','amber'],dammam:['مخاطر أمنية','amber'],jubail:['تشغيل حذِر','amber'],yanbu:['ضغط تصدير','amber'],jebel:['تحويل حمولات','amber'],singapore:['طبيعي','green']}},
+ hormuz:{name:'إغلاق مضيق هرمز',tag:'محاكاة',btn:C.red,
+  banner:'🚨 إغلاق تام لمضيق هرمز: تحويل كامل للصادرات النفطية نحو ينبع عبر خط شرق–غرب بسعة محدودة',bannerBg:'#dc2626',
+  desc:'محاكاة: توقف شبه تام للملاحة عبر هرمز. تتركز الصادرات النفطية والبتروكيماوية (الجبيل/رأس الخير) على الساحل الشرقي وتُجبَر على الالتفاف نحو البحر الأحمر بطاقة لا تكفي الحجم الكامل.',
+  brentP:40,freightX:1.4,tasiD:-6,live:false,
+  corr:{hormuz:[3,C.red],mandeb:[50,C.amber],suez:[40,C.amber],malacca:[100,C.green]},corrBadge:['شلل الممر الشرقي','red'],
+  ex:{crude:['تحويل كلي للبحر الأحمر — سعة محدودة','red'],prod:['اختناق تصدير','red'],petro:['تعطّل حاد (الجبيل)','red'],alu:['تعطّل (رأس الخير)','red']},
+  im:{wheat:['اعتماد كلي على البحر الأحمر','amber'],rice:['تأخير حاد','red'],barley:['تأخير حاد','red'],steel:['نقص وارتفاع حاد','red'],capital:['توقف توريد','red']},
+  ports:{jeddah:['تحميل زائد','red'],dammam:['شبه متوقف','red'],jubail:['متوقف','red'],yanbu:['ذروة تشغيل','amber'],jebel:['شلل','red'],singapore:['طبيعي','green']}},
+ both:{name:'إغلاق المضيقين',tag:'محاكاة',btn:C.dark,
+  banner:'🛑 طوارئ قصوى: إغلاق هرمز وباب المندب معاً — توقف شبه كامل للصادرات والواردات البحرية',bannerBg:'#991b1b',
+  desc:'محاكاة: فقدان الشريانين الشرقي (هرمز) والغربي (باب المندب) في آنٍ واحد. لا يبقى سوى مسارات برية محدودة ومخزونات استراتيجية. الأشد أثراً على الاقتصاد.',
+  brentP:56,freightX:1.9,tasiD:-12,live:false,
+  corr:{hormuz:[3,C.red],mandeb:[5,C.red],suez:[35,C.amber],malacca:[95,C.green]},corrBadge:['عزل بحري شامل','dark'],
+  ex:{crude:['توقف شبه تام للتصدير','dark'],prod:['توقف','dark'],petro:['توقف','dark'],alu:['توقف','dark']},
+  im:{wheat:['سحب المخزون الاستراتيجي','dark'],rice:['حرِج','dark'],barley:['حرِج','dark'],steel:['توقف','dark'],capital:['توقف','dark']},
+  ports:{jeddah:['متوقف','dark'],dammam:['متوقف','dark'],jubail:['متوقف','dark'],yanbu:['متوقف','dark'],jebel:['متوقف','dark'],singapore:['ضغط إقليمي','amber']}},
+ global:{name:'إغلاق الممرات العالمية',tag:'محاكاة',btn:C.dark,
+  banner:'🔴 انهيار سلاسل الإمداد العالمية: إغلاق هرمز وباب المندب والسويس وملقا — تعطّل التجارة الدولية',bannerBg:'#450a0a',
+  desc:'محاكاة قصوى: تعطّل نقاط الاختناق الأربع الكبرى عالمياً في آنٍ واحد، بما فيها الممر الآسيوي (ملقا) والأوروبي (السويس). صدمة نظامية تتجاوز المملكة إلى الاقتصاد العالمي.',
+  brentP:95,freightX:3.2,tasiD:-20,live:false,
+  corr:{hormuz:[3,C.dark],mandeb:[5,C.dark],suez:[5,C.dark],malacca:[0,C.dark]},corrBadge:['انهيار نظامي','dark'],
+  ex:{crude:['توقف عالمي','dark'],prod:['توقف','dark'],petro:['توقف','dark'],alu:['توقف','dark']},
+  im:{wheat:['أزمة أمن غذائي','dark'],rice:['أزمة','dark'],barley:['أزمة','dark'],steel:['توقف عالمي','dark'],capital:['توقف عالمي','dark']},
+  ports:{jeddah:['متوقف','dark'],dammam:['متوقف','dark'],jubail:['متوقف','dark'],yanbu:['متوقف','dark'],jebel:['متوقف','dark'],singapore:['متوقف','dark']}}
+};
+
+const CORR_LABELS={hormuz:'مضيق هرمز (الخليج العربي)',mandeb:'باب المندب (البحر الأحمر)',suez:'قناة السويس (بوابة أوروبا)',malacca:'مضيق ملقا (بوابة آسيا)'};
+const EX_LABELS={crude:'النفط الخام',prod:'المنتجات المكررة',petro:'البتروكيماويات والبلاستيك',alu:'الألمنيوم والفوسفات (معادن)'};
+const IM_LABELS={wheat:'القمح',rice:'الأرز',barley:'الشعير (الأعلاف)',steel:'الحديد والصلب',capital:'السلع الرأسمالية والآلات'};
+const PORT_LABELS={jeddah:'جدة الإسلامي',dammam:'الملك عبدالعزيز — الدمام',jubail:'الجبيل الصناعي',yanbu:'ينبع',jebel:'جبل علي (الإمارات)',singapore:'سنغافورة'};
+
+const EXPERTS={
+ oil:[
+  {src:'ING',date:'28 أبريل 2026',take:'رفعت توقعاتها لمتوسط برنت إلى ~$104 للربع الثاني و~$92 للربع الرابع 2026، مع عودة بطيئة لتدفقات هرمز دون مستويات ما قبل الحرب.',url:'https://think.ing.com/articles/oil-forecasts-revised-higher-as-strait-of-hormuz-disruption-drags-on280426/'},
+  {src:'Goldman Sachs',date:'9 أبريل 2026',take:'في السيناريو المتشائم: برنت فوق $100 طوال 2026، وقد يصل $120 في الربع الثالث إذا استمر الإغلاق وفُقد إنتاج إقليمي.',url:'https://www.fortune.com/2026/04/09/oil-price-outlook-brent-goldman-sachs-100-plus'},
+  {src:'EIA (حكومي)',date:'10 مارس 2026',take:'متوسط برنت ~$79 في 2026 و~$64 في 2027 — بافتراض إعادة فتح هرمز وتطبيع التدفقات لاحقاً (توقع متفائل نسبياً).',url:'https://eia.gov/outlooks/steo/report/global_oil.php'},
+  {src:'آموس هوكستين (CNBC)',date:'12 مايو 2026',take:'الأسعار تبقى مرتفعة $90–100 حتى نهاية 2026 وامتداداً إلى 2027 حتى لو أُعيد فتح هرمز مطلع يونيو.',url:'https://www.cnbc.com/2026/05/12/oil-prices-today-brent-wti-trump-iran-war-hormuz.html'},
+  {src:'J.P. Morgan (رؤية متباينة)',date:'2026',take:'رؤية أكثر تحفظاً: متوسط برنت ~$60 في 2026 بافتراض أن الضربات تتجنّب البنية النفطية — رؤية تجاوزتها الأحداث جزئياً.',url:'https://www.jpmorgan.com/insights/global-research/commodities/oil-prices'}
+ ],
+ food:[
+  {src:'البنك الدولي',date:'أبريل 2026',take:'تضخم غذائي حاد في اقتصادات الخليج المعتمدة على الاستيراد؛ برنامج الأغذية يقدّر أن 45 مليون شخص إضافي قد يواجهون الجوع إذا استمر الاضطراب وبقي النفط فوق $100.',url:'https://blogs.worldbank.org/en/opendata/food-prices-feel-the-heat-as-war-in-the-middle-east-rattles-comm'},
+  {src:'IFPRI',date:'أبريل 2026',take:'هرمز نقطة اختناق للأسمدة؛ قد يتأثر ثلث تجارة الأسمدة العالمية؛ سابك للمغذيات الزراعية أعلنت القوة القاهرة وأوقفت إنتاج اليوريا مؤقتاً.',url:'https://www.ifpri.org/blog/will-the-iran-crisis-lead-to-another-round-of-food-price-spikes/'},
+  {src:'FAO (عبر S&P Global)',date:'30 مارس 2026',take:'دول الخليج تستورد حتى 85% من غذائها؛ أسعار الأسمدة قد ترتفع 15–20% في النصف الأول 2026؛ تحذير من أحد أشد صدمات تدفقات السلع.',url:'https://www.spglobal.com/energy/en/news-research/latest-news/agriculture/033026-factbox-middle-east-war-threatens-food-security-in-gulf-countries'},
+  {src:'CSIS',date:'6 مايو 2026',take:'أسعار اليوريا قفزت ~77% منذ منتصف ديسمبر 2025؛ التأثيرات تتجاوز الخليج إلى أسواق الزراعة العالمية عبر ارتفاع المدخلات.',url:'https://www.csis.org/analysis/chokepoint-how-war-iran-threatens-global-food-security'},
+  {src:'BMI (عبر CNBC)',date:'12 مارس 2026',take:'مستهلكو دول مجلس التعاون الأكثر عرضة لقفزات أسعار الغذاء قصيرة الأجل بسبب اعتمادهم الكبير على الواردات البحرية عبر هرمز.',url:'https://www.cnbc.com/2026/03/12/iran-war-food-prices-fertilizer-hormuz-countries-impacted-.html'}
+ ]
+};
+
+/* السلع الغذائية: سعر مرجعي حقيقي ($/طن) + رمز Stooq للتحديث الحي + عامل التحويل لكل طن + حدود منطقية + رابط المصدر */
+const FOOD_PREMIUM={current:1.0,hormuz:1.15,both:1.4,global:1.8};
+const FOOD=[
+ {key:'wheat',name:'القمح',seed:214,lastWeek:219,asof:'9 يونيو 2026',sym:'zw.f',conv:0.367437,min:120,max:600,url:'https://tradingeconomics.com/commodity/wheat'},
+ {key:'corn', name:'الذرة',seed:160,lastWeek:163,asof:'يونيو 2026',sym:'zc.f',conv:0.393683,min:90, max:500,url:'https://tradingeconomics.com/commodity/corn'},
+ {key:'rice', name:'الأرز',seed:279,lastWeek:270,asof:'5 يونيو 2026',sym:'zr.f',conv:22.0462,min:150,max:700,url:'https://tradingeconomics.com/commodity/rice'},
+ {key:'sugar',name:'السكر',seed:328,lastWeek:320,asof:'مايو 2026',sym:'sb.f',conv:22.0462,min:150,max:900,url:'https://tradingeconomics.com/commodity/sugar'},
+ {key:'barley',name:'الشعير (أعلاف)',seed:117,lastWeek:117,asof:'مارس 2026 — IMF',sym:null,conv:1,min:60,max:400,url:'https://fred.stlouisfed.org/series/PBARLUSDM'}
+];
+/* تحويل سعر Stooq إلى $/طن: القمح/الذرة سنت/بوشل، الأرز $/cwt، السكر سنت/رطل */
+function stooqToTon(f,raw){
+ if(f.key==='wheat') return (raw/100)*36.7437;
+ if(f.key==='corn')  return (raw/100)*39.3683;
+ if(f.key==='rice')  return raw*22.0462;
+ if(f.key==='sugar') return (raw/100)*2204.62;
+ return raw;
+}
+
+let active='current';
+function badge(el,t,k){const s=S[k];el.textContent=t;el.style.background=s.bg;el.style.color=s.tx;}
+function buildCorridors(){document.getElementById('corridors').innerHTML=Object.keys(CORR_LABELS).map(k=>`<div><div class="flex justify-between items-center text-[11px] mb-1"><span class="text-slate-600 font-bold flex items-center gap-1.5"><span class="live-dot" id="dot-${k}"></span>${CORR_LABELS[k]}</span><span id="t-${k}" class="font-bold mono"></span></div><div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden"><div id="bar-${k}" class="bar-fill"></div></div></div>`).join('');}
+function buildList(c,labels,p){document.getElementById(c).innerHTML=Object.keys(labels).map(k=>`<div class="flex justify-between items-center bg-slate-50 p-2.5 rounded border border-slate-100"><span class="text-xs font-bold text-slate-700">${labels[k]}</span><span id="${p}-${k}" class="px-2 py-0.5 rounded text-[10px] font-bold">—</span></div>`).join('');}
+function buildPorts(){document.getElementById('ports').innerHTML=Object.keys(PORT_LABELS).map(k=>`<div class="bg-slate-50 rounded-lg border border-slate-100 p-3 text-center"><div class="text-[11px] font-bold text-slate-700 mb-1.5 leading-tight">${PORT_LABELS[k]}</div><span id="port-${k}" class="inline-block px-2 py-0.5 rounded text-[10px] font-bold">—</span></div>`).join('');}
+function buildExperts(){const card=e=>`<a href="${e.url}" target="_blank" rel="noopener" class="block bg-slate-50 p-3 rounded-lg border border-slate-100 hover:border-blue-300 transition-colors group"><div class="flex justify-between items-center mb-1"><span class="text-[11px] font-bold text-slate-800">${e.src}</span><span class="text-[10px] text-slate-400 mono">${e.date}</span></div><p class="text-[11px] text-slate-600 leading-relaxed">${e.take}</p><span class="text-[10px] text-blue-600 font-bold mt-1.5 inline-block group-hover:underline">اقرأ المقال الأصلي ↗</span></a>`;document.getElementById('exp-oil').innerHTML=EXPERTS.oil.map(card).join('');document.getElementById('exp-food').innerHTML=EXPERTS.food.map(card).join('');}
+
+let livePrices={},foodLive=false;
+function buildFoodPrices(){document.getElementById('food-prices').innerHTML=FOOD.map(f=>`<div class="bg-slate-50 rounded-lg border border-slate-100 p-3"><div class="flex items-center justify-between gap-1"><a href="${f.url}" target="_blank" rel="noopener" class="text-[11px] font-bold text-slate-700 hover:text-blue-600 hover:underline">${f.name} ↗</a><span id="fpstat-${f.key}" class="px-1.5 py-0.5 rounded text-[9px] font-bold whitespace-nowrap">—</span></div><div class="mt-1"><span id="fp-${f.key}" class="text-lg font-black text-slate-800 mono">$—</span> <span class="text-[10px] text-slate-400">/طن</span></div><div id="fpwk-${f.key}" class="text-[10px] mt-0.5"></div><span id="fpsub-${f.key}" class="text-[9px] block text-slate-400 mt-0.5"></span></div>`).join('');}
+function updateFood(key){
+  const prem=FOOD_PREMIUM[key]||1, tg=document.getElementById('food-tag'), sim=(key!=='current');
+  tg.textContent=key==='current'?(foodLive?'حي ✓':'مرجعي'):'محاكاة';
+  tg.className='px-2 py-0.5 rounded text-[10px] font-bold '+(key==='current'?'bg-emerald-100 text-emerald-800':'bg-red-100 text-red-800');
+  FOOD.forEach(f=>{
+    const cur=livePrices[f.key]||f.seed, val=Math.round(cur*prem);
+    document.getElementById('fp-'+f.key).textContent='$'+val.toLocaleString('en-US');
+    const chg = sim ? (prem-1)*100 : ((cur-f.lastWeek)/f.lastWeek)*100;
+    const arrow = chg>0.1?'▲':(chg<-0.1?'▼':'■'), col = chg>0.1?'#dc2626':(chg<-0.1?'#059669':'#64748b');
+    document.getElementById('fpwk-'+f.key).innerHTML=`<span style="color:${col}">${arrow} ${chg>=0?'+':''}${chg.toFixed(1)}%</span> <span class="text-slate-400">${sim?'علاوة محاكاة':'مقابل الأسبوع الماضي'}</span>`;
+    let st,stk; if(chg>=5){st='تحذير';stk='red';}else if(chg>=2){st='مراقبة';stk='amber';}else{st='طبيعي';stk='green';}
+    badge(document.getElementById('fpstat-'+f.key),st,stk);
+    document.getElementById('fpsub-'+f.key).textContent=key==='current'?(livePrices[f.key]?'سعر حي':('مرجعي · '+f.asof)):('سعر أساس × '+prem);
+  });
+}
+async function fetchFoodPrices(){
+  if(active!=='current')return;
+  for(const f of FOOD){ if(!f.sym)continue;
+    const url='https://stooq.com/q/l/?s='+f.sym+'&f=sd2t2ohlcv&h&e=csv';
+    try{
+      const r=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(url));
+      if(!r.ok)continue;
+      const lines=(await r.text()).trim().split('\n'); if(lines.length<2)continue;
+      const close=parseFloat(lines[1].split(',')[6]); if(!isFinite(close))continue;
+      const ton=stooqToTon(f,close);
+      if(ton>=f.min&&ton<=f.max)livePrices[f.key]=ton;
+    }catch(e){}
+  }
+  if(Object.keys(livePrices).length)foodLive=true;
+  if(active==='current')updateFood('current');
+}
+
+async function fetchNews(){
+  const box=document.getElementById('news');
+  if(active!=='current')return;
+  box.innerHTML='<p class="text-center text-slate-400 py-3">جاري جلب الأخبار…</p>';
+  const rss='https://news.google.com/rss/search?q='+encodeURIComponent('السعودية نفط صادرات موانئ سلاسل الإمداد')+'&hl=ar&gl=SA&ceid=SA:ar';
+  const attempts=[
+    {u:'https://api.allorigins.win/raw?url='+encodeURIComponent(rss),json:false},
+    {u:'https://api.allorigins.win/get?url='+encodeURIComponent(rss),json:true},
+    {u:'https://corsproxy.io/?url='+encodeURIComponent(rss),json:false}
+  ];
+  for(const a of attempts){
+    try{
+      const r=await fetch(a.u);
+      if(!r.ok)continue;
+      let xmlText=a.json?(await r.json()).contents:await r.text();
+      const items=[...new DOMParser().parseFromString(xmlText,'text/xml').querySelectorAll('item')];
+      if(!items.length)continue;
+      box.innerHTML='';
+      items.slice(0,6).forEach(it=>{
+        let title=(it.querySelector('title')?.textContent)||'';
+        let link=(it.querySelector('link')?.textContent)||rss;
+        let src=(it.querySelector('source')?.textContent)||'';
+        if(!src&&title.includes(' - ')){const p=title.split(' - ');src=p[p.length-1];title=p.slice(0,-1).join(' - ');}
+        const el=document.createElement('a');
+        el.href=link;el.target='_blank';el.rel='noopener';
+        el.className='block bg-slate-50 p-2.5 rounded border border-slate-200 hover:border-blue-300 transition-colors group';
+        el.innerHTML=`<span class="text-[10px] text-blue-600 font-bold mb-1 block group-hover:underline">${src||'مصدر إخباري'} ↗</span><p class="text-slate-700 font-semibold leading-relaxed">${title}</p>`;
+        box.appendChild(el);
+      });
+      return;
+    }catch(e){}
+  }
+  box.innerHTML=`<a href="${rss}" target="_blank" rel="noopener" class="block text-center bg-slate-50 p-3 rounded border border-slate-200 text-[11px] text-blue-600 font-bold hover:underline">تعذّر الجلب التلقائي — افتح آخر الأخبار من Google News مباشرة ↗</a>`;
+}
+
+const SIM_NEWS={
+ hormuz:['أرامكو ترفع ضخ خط شرق–غرب إلى أقصى طاقته لتعويض توقف التصدير عبر هرمز','قفزة في أسعار العقود الآجلة للنفط مع شلل الملاحة في الخليج العربي','إعادة توجيه ناقلات البتروكيماويات من الجبيل نحو موانئ البحر الأحمر'],
+ both:['وزارة التجارة تفعّل بروتوكولات الأمن الغذائي وتراقب المخزون الاستراتيجي','توقف شبه كامل للصادرات البحرية بعد إغلاق الشريانين الشرقي والغربي','تفعيل المسارات البرية البديلة لتأمين الواردات الأساسية'],
+ global:['اضطراب الممرات العالمية الأربعة يهدد إمدادات الطاقة والغذاء عالمياً','تكدّس الناقلات حول رأس الرجاء الصالح مع شلل السويس وملقا','الأسواق العالمية تتجه نحو سيناريو نفط الـ200 دولار']
+};
+
+function run(key){
+  active=key;const m=M[key];
+  const tb=document.getElementById('top-banner');tb.textContent=m.banner;tb.style.background=m.bannerBg;
+  document.getElementById('active-badge').textContent=m.name;
+  document.getElementById('scn-desc').textContent=m.desc;
+  ['current','hormuz','both','global'].forEach(k=>{const b=document.getElementById('b-'+k),bm=M[k],on=(k===key);b.style.borderColor=on?bm.btn:'#e2e8f0';b.style.background=on?'#f8fafc':'#fff';b.style.boxShadow=on?`0 0 0 2px ${bm.btn}33`:'none';b.style.opacity=on?'1':'0.75';b.innerHTML=`<div class="flex justify-between items-center mb-1"><span class="text-[11px] font-bold mono" style="color:${bm.btn}">${bm.tag==='مباشر'?'الوضع الحالي':'سيناريو'}</span><span class="h-2 w-2 rounded-full" style="background:${on?bm.btn:'#cbd5e1'}"></span></div><div class="font-bold text-[13px] text-slate-800">${bm.name}</div>`;});
+
+  const brent=BASE_BRENT+m.brentP;
+  document.getElementById('brent').textContent='$'+brent.toFixed(2);
+  const bs=document.getElementById('brent-sub');if(m.brentP>0){bs.textContent='علاوة محاكاة: +$'+m.brentP.toFixed(2);bs.style.color=C.red;}else{bs.textContent='سعر متقلب — أساس واقعي';bs.style.color='#64748b';}
+
+  const fis=document.getElementById('fiscal'),fsub=document.getElementById('fiscal-sub');
+  if(key==='current'){const gap=brent-BREAKEVEN;fis.textContent=(gap>=0?'+$':'−$')+Math.abs(gap).toFixed(2);fis.classList.add('mono');fis.style.color=C.amber;fsub.textContent='قرب نقطة التعادل (~$96)';fsub.style.color=C.amber;}
+  else{fis.textContent='إيراد محتجَز';fis.classList.remove('mono');fis.style.color=C.red;fsub.textContent='القفزة السعرية لا تتحول إيراداً لتعذّر التصدير';fsub.style.color=C.red;}
+
+  const fr=Math.round(BASE_FREIGHT*m.freightX);
+  document.getElementById('freight').textContent='$'+fr.toLocaleString('en-US');
+  const frs=document.getElementById('freight-sub');frs.textContent=m.freightX>1?('ارتفاع ×'+m.freightX):'مرتفع بفعل إعادة التوجيه';frs.style.color=m.freightX>1?C.red:'#64748b';
+
+  const tasi=Math.round(BASE_TASI*(1+m.tasiD/100));
+  document.getElementById('tasi').textContent=tasi.toLocaleString('en-US');
+  const ts=document.getElementById('tasi-sub');ts.textContent=m.tasiD<0?('محاكاة: '+m.tasiD+'%'):'آخر إغلاق معتمد';ts.style.color=m.tasiD<0?C.red:'#64748b';
+
+  badge(document.getElementById('corr-badge'),m.corrBadge[0],m.corrBadge[1]);
+  Object.keys(m.corr).forEach(k=>{const[pct,col]=m.corr[k];const bar=document.getElementById('bar-'+k);bar.style.width=pct+'%';bar.style.backgroundColor=col;document.getElementById('t-'+k).textContent=pct+'%';document.getElementById('t-'+k).style.color=col;const dot=document.getElementById('dot-'+k);dot.style.backgroundColor=col;dot.style.animation=pct<=10?'none':'pulse 1.5s infinite';});
+
+  Object.keys(m.ex).forEach(k=>badge(document.getElementById('ex-'+k),m.ex[k][0],m.ex[k][1]));
+  Object.keys(m.im).forEach(k=>badge(document.getElementById('im-'+k),m.im[k][0],m.im[k][1]));
+  Object.keys(m.ports).forEach(k=>badge(document.getElementById('port-'+k),m.ports[k][0],m.ports[k][1]));
+  updateFood(key); if(key==='current')fetchFoodPrices();
+
+  document.getElementById('news-tag').textContent=m.live?'مباشر':'محاكاة';
+  if(m.live){fetchNews();}
+  else{const box=document.getElementById('news');box.innerHTML='';(SIM_NEWS[key]||[]).forEach(t=>{const d=document.createElement('div');d.className='block bg-slate-50 p-2.5 rounded border border-red-200 opacity-90';d.innerHTML=`<span class="text-[10px] text-red-600 font-bold mb-1 block">عنوان محاكاة</span><p class="text-slate-700 font-semibold leading-relaxed">${t}</p>`;box.appendChild(d);});}
+}
+
+/* بيانات التجارة (2024) — حصص الدول موثّقة، قيم المنتجات تقديرية */
+const T_EXP_PROD={l:['نفط خام','منتجات مكررة','بلاستيك وبوليمرات','غاز بترولي LPG/NGL','كيماويات عضوية','أسمدة','كيماويات غير عضوية','ألمنيوم','كهربائيات وهواتف','سفن وقوارب'],d:[179,28,18.6,16,14,6,4,3,2,1.5]};
+const T_EXP_DEST={l:['الصين','كوريا الجنوبية','اليابان','الهند','الإمارات','الولايات المتحدة','بولندا','البحرين','مصر','سنغافورة'],d:[15.2,9.4,9.3,8.9,7.6,4.2,3.5,3.2,2.8,2.51]};
+const T_IMP_PROD={l:['آلات وحواسيب','مركبات وسيارات','كهربائيات وهواتف','وقود مكرر','حديد وصلب','ذهب ومعادن ثمينة','أغذية (حبوب/لحوم/ألبان)','أدوية','طائرات','بلاستيك'],d:[30,25,24,15,12,10,10,8,6,6]};
+const T_IMP_ORIG={l:['الصين','الولايات المتحدة','الإمارات','الهند','ألمانيا','اليابان','إيطاليا','مصر','سويسرا','كوريا الجنوبية'],d:[23.9,8.5,5.52,5.5,4.3,3.6,3.5,3.3,3.1,2.6]};
+const RADAR_AXES=['أمن الطاقة والتصدير','الاستقرار المالي','الأمن الغذائي','اللوجستيات والموانئ','استقرار السوق المالي','أمن البنية التحتية','التماسك الإقليمي'];
+const RADAR=[
+ {label:'اليوم 1',c:'#10b981',d:[25,15,10,20,30,35,25]},
+ {label:'اليوم 30',c:'#f59e0b',d:[70,45,40,65,60,65,45]},
+ {label:'اليوم 60',c:'#ef4444',d:[90,70,65,85,75,80,60]},
+ {label:'اليوم 90',c:'#7c3aed',d:[85,80,70,80,65,70,70]},
+ {label:'الآن',c:'#2563eb',d:[75,78,60,70,55,55,68]}
+];
+function hbar(id,o,color){new Chart(document.getElementById(id),{type:'bar',data:{labels:o.l,datasets:[{data:o.d,backgroundColor:color,borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'#f1f5f9'},ticks:{font:{size:10}}},y:{grid:{display:false},ticks:{font:{size:10}}}}}});}
+function buildCharts(){
+  if(typeof Chart==='undefined')return;
+  Chart.defaults.font.family='Cairo';Chart.defaults.color='#475569';
+  hbar('ch-exp-prod',T_EXP_PROD,'#0e7490');
+  hbar('ch-exp-dest',T_EXP_DEST,'#0891b2');
+  hbar('ch-imp-prod',T_IMP_PROD,'#4338ca');
+  hbar('ch-imp-orig',T_IMP_ORIG,'#6366f1');
+  new Chart(document.getElementById('ch-radar'),{type:'radar',data:{labels:RADAR_AXES,datasets:RADAR.map(r=>({label:r.label,data:r.d,borderColor:r.c,backgroundColor:r.c+'22',borderWidth:2,pointRadius:2,pointBackgroundColor:r.c}))},options:{responsive:true,maintainAspectRatio:false,scales:{r:{min:0,max:100,ticks:{stepSize:20,font:{size:9},backdropColor:'transparent'},pointLabels:{font:{size:10}}}},plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12,padding:10}}}}});
+}
+
+buildCorridors();buildList('exports',EX_LABELS,'ex');buildList('imports',IM_LABELS,'im');buildPorts();buildExperts();buildFoodPrices();buildCharts();run('current');
+</script>
+</body>
+</html>
