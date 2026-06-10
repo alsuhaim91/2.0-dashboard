@@ -340,39 +340,19 @@ function updateFood(key){
     document.getElementById('fpsub-'+f.key).textContent=key==='current'?(livePrices[f.key]?'سعر حي':('مرجعي · '+f.asof)):('سعر أساس × '+prem);
   });
 }
-async function fetchFoodPrices(){
-  if(active!=='current')return;
-  for(const f of FOOD){ if(!f.sym)continue;
-    const url='https://stooq.com/q/l/?s='+f.sym+'&f=sd2t2ohlcv&h&e=csv';
-    try{
-      const r=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent(url));
-      if(!r.ok)continue;
-      const lines=(await r.text()).trim().split('\n'); if(lines.length<2)continue;
-      const close=parseFloat(lines[1].split(',')[6]); if(!isFinite(close))continue;
-      const ton=stooqToTon(f,close);
-      if(ton>=f.min&&ton<=f.max)livePrices[f.key]=ton;
-    }catch(e){}
-  }
-  if(Object.keys(livePrices).length)foodLive=true;
-  if(active==='current')updateFood('current');
-}
-
+const WORKER_URL='https://dashboard-prices.alsuhaim-abdulaziz.workers.dev/';
 let liveBrent=null,liveTasi=null,marketTime='';
-async function pullStooq(sym,min,max){
-  try{
-    const r=await fetch('https://api.allorigins.win/raw?url='+encodeURIComponent('https://stooq.com/q/l/?s='+sym+'&f=sd2t2ohlcv&h&e=csv'));
-    if(!r.ok)return null;
-    const lines=(await r.text()).trim().split('\n'); if(lines.length<2)return null;
-    const cols=lines[1].split(','); const c=parseFloat(cols[6]);
-    if(!isFinite(c)||c<min||c>max)return null;
-    return {v:c,d:cols[1]||''};
-  }catch(e){return null;}
-}
-async function fetchMarkets(){
+async function fetchLive(){
   if(active!=='current')return;
-  const b=await pullStooq('cb.f',30,250); if(b){liveBrent=b.v;marketTime=b.d;}
-  const t=await pullStooq('^tasi',5000,20000); if(t){liveTasi=t.v;}
-  if(active==='current')renderMarkets('current',M.current);
+  try{
+    const r=await fetch(WORKER_URL); if(!r.ok)return;
+    const d=await r.json();
+    if(d.brent&&d.brent.price){liveBrent=d.brent.price;marketTime=d.brent.date||'';}
+    if(d.tasi&&d.tasi.price){liveTasi=d.tasi.price;}
+    ['wheat','corn','rice','sugar'].forEach(k=>{if(d[k]&&d[k].price)livePrices[k]=d[k].price;});
+    if(Object.keys(livePrices).length)foodLive=true;
+  }catch(e){}
+  if(active==='current'){renderMarkets('current',M.current);updateFood('current');}
 }
 function renderMarkets(key,m){
   const brent=(liveBrent||BASE_BRENT)+m.brentP;
@@ -452,7 +432,7 @@ function run(key){
   Object.keys(m.ex).forEach(k=>badge(document.getElementById('ex-'+k),m.ex[k][0],m.ex[k][1]));
   Object.keys(m.im).forEach(k=>badge(document.getElementById('im-'+k),m.im[k][0],m.im[k][1]));
   Object.keys(m.ports).forEach(k=>badge(document.getElementById('port-'+k),m.ports[k][0],m.ports[k][1]));
-  updateFood(key); if(key==='current'){fetchFoodPrices();fetchMarkets();}
+  updateFood(key); if(key==='current')fetchLive();
 
   document.getElementById('news-tag').textContent=m.live?'مباشر':'محاكاة';
   if(m.live){fetchNews();}
@@ -484,7 +464,7 @@ function buildCharts(){
 }
 
 buildCorridors();buildList('exports',EX_LABELS,'ex');buildList('imports',IM_LABELS,'im');buildPorts();buildExperts();buildFoodPrices();buildCharts();run('current');
-setInterval(()=>{if(active==='current'){fetchMarkets();fetchFoodPrices();fetchNews();}},300000);
+setInterval(()=>{if(active==='current'){fetchLive();fetchNews();}},300000);
 </script>
 </body>
 </html>
