@@ -341,15 +341,17 @@ function updateFood(key){
   });
 }
 const WORKER_URL='https://dashboard-prices.alsuhaim-abdulaziz.workers.dev/';
+const LIVE_BOUNDS={brent:[30,250],wheat:[120,600],corn:[90,500],rice:[150,700],sugar:[150,900],tasi:[5000,20000]};
 let liveBrent=null,liveTasi=null,marketTime='';
 async function fetchLive(){
   if(active!=='current')return;
   try{
     const r=await fetch(WORKER_URL); if(!r.ok)return;
     const d=await r.json();
-    if(d.brent&&d.brent.price){liveBrent=d.brent.price;marketTime=d.brent.date||'';}
-    if(d.tasi&&d.tasi.price){liveTasi=d.tasi.price;}
-    ['wheat','corn','rice','sugar'].forEach(k=>{if(d[k]&&d[k].price)livePrices[k]=d[k].price;});
+    const ok=(k,v)=>typeof v==='number'&&v>=LIVE_BOUNDS[k][0]&&v<=LIVE_BOUNDS[k][1];
+    if(d.brent&&ok('brent',d.brent.price)){liveBrent=d.brent.price;marketTime=d.brent.date||'';}
+    if(d.tasi&&ok('tasi',d.tasi.price)){liveTasi=d.tasi.price;}
+    ['wheat','corn','rice','sugar'].forEach(k=>{if(d[k]&&ok(k,d[k].price))livePrices[k]=d[k].price;});
     if(Object.keys(livePrices).length)foodLive=true;
   }catch(e){}
   if(active==='current'){renderMarkets('current',M.current);updateFood('current');}
